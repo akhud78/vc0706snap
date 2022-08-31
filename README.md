@@ -1,5 +1,5 @@
 # vc0706-test
-Python test utility for VC7060 JPG camera
+Python test utility for VC0706 JPG camera
 
 ## Requirements
 - Ubuntu 20.04
@@ -23,6 +23,7 @@ $ mkdir media
 ## Usage
 - Help
 ```
+$ python3 vc0706_test.py -h
 usage: vc0706_test.py [-h] [--port PORT] [--resolution RESOLUTION]
                       [--timeout TIMEOUT] [--chunk CHUNK]
 
@@ -30,13 +31,13 @@ Interfacing to VC0706 cameras and grabbing a photo
 
 optional arguments:
   -h, --help            show this help message and exit
-  --port PORT           USB port, e.g. /dev/ttyUSB0
+  --port PORT           device name [/dev/ttyUSB0]
   --resolution RESOLUTION
-                        image resolution [0]
-  --timeout TIMEOUT     port timeout [0.5]
+                        image resolution (0-2) [0]
+  --timeout TIMEOUT     port timeout in seconds [0.5]
   --chunk CHUNK         data chunk size (must be multiple of 4) [1024]
 ```
-- Run
+- Run script
 ```
 $ python3 vc0706_test.py --r 0 --c 512
 Called with args:

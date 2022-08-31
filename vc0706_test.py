@@ -233,13 +233,13 @@ def parse_args():
     desc = 'Interfacing to VC0706 cameras and grabbing a photo'
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--port', dest='port',
-                        help='USB port, e.g. /dev/ttyUSB0',
+                        help='device name [/dev/ttyUSB0]',
                         default='/dev/ttyUSB0', type=str)
     parser.add_argument('--resolution', dest='resolution',
-                        help='image resolution [0]',
+                        help='image resolution (0-2) [0]',
                         default=0, type=int)
     parser.add_argument('--timeout', dest='timeout',
-                        help='port timeout [0.5]',
+                        help='port timeout in seconds [0.5]',
                         default=0.5, type=float)
     parser.add_argument('--chunk', dest='chunk',
                         help='data chunk size (must be multiple of 4) [1024]',
