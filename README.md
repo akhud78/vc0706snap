@@ -22,18 +22,25 @@ $ mkdir media
 ## Usage
 - Run script
 ```
-$ python3 vc0706_test.py 
-760011000b56433037303320312e3030
+$ python3 vc0706_test.py
+/dev/ttyUSB0 38400 0.5
+--- Version ---
 VC0703 1.00
-VC0706 Camera found
-7600310000
-7600360000
+Camera found
+Set Size
+Reset
 Snap!
-760034000400000e38
-3640 bytes to read
-Reading 3640 bytes at 0
-saving 3640 bytes
-3640 Bytes written
+42556 bytes to read
+Reading 1024 bytes at 0
+saving 1024 bytes
+Reading 1024 bytes at 1024
+...
+Reading 1024 bytes at 40960
+saving 41984 bytes
+Reading 572 bytes at 41984
+saving 42556 bytes
+42556 Bytes written
+Finished in 15.8 seconds!
 ```
 - View image
 ```

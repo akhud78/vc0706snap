@@ -3,6 +3,7 @@
 # https://github.com/adafruit/Adafruit-VC0706-Serial-Camera-Library/blob/master/getimage0706.py
 # https://github.com/adafruit/Adafruit_CircuitPython_VC0706/blob/main/adafruit_vc0706.py
 
+import time
 import serial
 from datetime import datetime
 
@@ -10,7 +11,7 @@ BAUD = 38400
 #BAUD = 115200
 PORT = "/dev/ttyUSB0"
 
-TIMEOUT = 1.5    # I needed a longer timeout than ladyada's 0.2 value
+TIMEOUT = 0.5    # I needed a longer timeout than ladyada's 0.2 value
 SERIALNUM = 0    # start with 0, each camera should have a unique ID.
 
 '''
@@ -78,7 +79,7 @@ def getversion():
     cmd = bytearray(getversioncommand)
     s.write(cmd)
     reply = s.read(16)
-    print(reply.hex())
+    #print(reply.hex())
     print(reply.decode()[5:])
     if checkreply(reply, CMD_GETVERSION):
         return True
@@ -93,7 +94,7 @@ def setsize(size):
     cmd = bytearray(setsizecommand)
     s.write(cmd)
     reply = s.read(17)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, VC0706_WRITE_DATA):
         return True
     return False
@@ -107,7 +108,7 @@ def takephoto():
     cmd = bytearray(takephotocommand)
     s.write(cmd)
     reply = s.read(5)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, CMD_TAKEPHOTO) and reply[3] == 0:
         return True
     return False
@@ -121,7 +122,7 @@ def getbufferlength():
     cmd = bytearray(getbufflencommand)
     s.write(cmd)
     r = s.read(10)
-    print(r.hex())
+    #print(r.hex())
     if checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4:
         l = r[5]
         l <<= 8
@@ -143,9 +144,10 @@ readphotocommand = [COMMANDSEND, SERIALNUM, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAM
 def readbuffer(bytes):
     addr = 0   # the initial offset into the frame buffer
     photo = bytearray()
-
+    
     # bytes to read each time (must be a mutiple of 4)
-    inc = 8192
+    #inc = 8192
+    inc = 1024
 
     while addr < bytes:
         # on the last read, we may need to read fewer bytes.
@@ -157,7 +159,7 @@ def readbuffer(bytes):
         command += [(chunk >> 24) & 0xff, (chunk>>16) & 0xff, (chunk>>8 ) & 0xff, chunk & 0xff]
         # append the delay
         # The time unit is 0.01 millisecond
-        command += [0x01, 0x00]
+        command += [0x10, 0x00]
         print ("Reading", chunk, "bytes at", addr)
         
         # make a string out of the command bytes.
@@ -188,15 +190,18 @@ def readbuffer(bytes):
         
 
 def shoot():
+    print("--- Version ---")
     if (not getversion()):
         print("Camera not found")
         exit(0)
-    print("VC0706 Camera found")
+    print("Camera found")
     
-    #setsize(VC0706_640x480)
+    if setsize(VC0706_640x480):
+        print("Set Size")
     #setsize(VC0706_320x240)
-    setsize(VC0706_160x120)
-    reset()
+    #setsize(VC0706_160x120)
+    if reset():
+        print("Reset")
     
     if takephoto():
         print("Snap!")
@@ -204,6 +209,7 @@ def shoot():
     bytes_to_read = getbufferlength()
     print(bytes_to_read, "bytes to read")
     
+    stamp = time.monotonic()
     photo = readbuffer(bytes_to_read)
     filename = "photo_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
 
@@ -212,10 +218,11 @@ def shoot():
     f = open(fullpath, 'wb')
     f.write(photo)
     f.close()
+    print("Finished in %0.1f seconds!" % (time.monotonic() - stamp))
+    
     return fullpath
 
-
-
 if __name__ =="__main__":
+    print(PORT, BAUD, TIMEOUT)
     s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
     shoot()
