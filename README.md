@@ -13,6 +13,11 @@ Python test utility for VC0706 JPG camera
 - [raspi_camera.py](https://github.com/adafruit/Adafruit-VC0706-Serial-Camera-Library/blob/master/raspi_camera.py) - Adafruit TTL JPEG Camera
 - [Adafruit CircuitPython VC0706](https://github.com/adafruit/Adafruit_CircuitPython_VC0706)
 
+## Protocol
+- [CMOS CAMERA JC425M-Q01](docs/JC425M-Q01_VC0706protocol.pdf) - pdf
+- [JPEG Serial Camera Module 0706 Protocol](docs/Manual_0706_Protocol.pdf) - pdf
+- [VC0706 protocol](docs/VC0706protocol.pdf) - pdf
+
 ## Setup
 - Clone and setup [project](https://github.com/akhud78/vc0706snap)
 
