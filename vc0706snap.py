@@ -210,7 +210,7 @@ def shoot(resolution=3, inc=1024):
         print("Reset")
     
     if takephoto():
-        print("Snap!")
+        print("--- Snap! ---")
         
     bytes_to_read = getbufferlength()
     print(bytes_to_read, "bytes to read")
