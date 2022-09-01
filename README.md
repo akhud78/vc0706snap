@@ -2,9 +2,11 @@
 Python test utility for VC0706 JPG camera
 
 ## Requirements
-- Ubuntu 20.04
-- Python 3
 - [TTL Serial Camera](https://learn.adafruit.com/ttl-serial-camera)
+- Ubuntu 20.04
+- Python 3.8.10
+    - [pySerial](https://pyserial.readthedocs.io/en/latest/)
+    - [Argparse](https://docs.python.org/3.8/howto/argparse.html#argparse-tutorial)
 
 ## Links
 - [vc0706_camera](https://github.com/LinuxCircle/vc0706_camera) - LinuxCircle
