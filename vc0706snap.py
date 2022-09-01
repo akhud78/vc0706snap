@@ -5,6 +5,7 @@
 
 import time
 import serial
+import argparse
 from datetime import datetime
 
 BAUD = 38400
@@ -49,8 +50,9 @@ getversioncommand = [COMMANDSEND, SERIALNUM, CMD_GETVERSION, COMMANDEND]
 takephotocommand = [COMMANDSEND, SERIALNUM, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME]
 getbufflencommand = [COMMANDSEND, SERIALNUM, CMD_GETBUFFLEN, 0x01, FBUF_CURRENTFRAME]
 
-s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
-
+#s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
+s = serial.Serial()
+    
 def checkreply(r, b):
     if (r[0] == 0x76 and r[1] == SERIALNUM and r[2] == b and r[3] == 0x00):
         return True
@@ -141,17 +143,17 @@ The host sends this command to get the image data from frame buffer.
 '''
 readphotocommand = [COMMANDSEND, SERIALNUM, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAME, 0x0a]
 
-def readbuffer(bytes):
+def readbuffer(size, inc=1024):
     addr = 0   # the initial offset into the frame buffer
     photo = bytearray()
     
     # bytes to read each time (must be a mutiple of 4)
     #inc = 8192
-    inc = 1024
+    #inc = 1024
 
-    while addr < bytes:
+    while addr < size:
         # on the last read, we may need to read fewer bytes.
-        chunk = min(bytes-addr, inc)
+        chunk = min(size-addr, inc)
 
         # append 4 bytes that specify the offset into the frame buffer
         command = readphotocommand + [(addr >> 24) & 0xff, (addr>>16) & 0xff, (addr>>8 ) & 0xff, addr & 0xff]
@@ -189,28 +191,32 @@ def readbuffer(bytes):
     return photo
         
 
-def shoot():
+def shoot(resolution=3, inc=1024):
     print("--- Version ---")
     if (not getversion()):
         print("Camera not found")
         exit(0)
     print("Camera found")
-    
-    if setsize(VC0706_640x480):
-        print("Set Size")
-    #setsize(VC0706_320x240)
-    #setsize(VC0706_160x120)
+
+    print("Set Size")
+    if resolution == 0:
+        setsize(VC0706_160x120)
+    elif resolution == 1:
+        setsize(VC0706_320x240)
+    else:
+        setsize(VC0706_640x480)    
+
     if reset():
         print("Reset")
     
     if takephoto():
-        print("Snap!")
+        print("--- Snap! ---")
         
     bytes_to_read = getbufferlength()
     print(bytes_to_read, "bytes to read")
     
     stamp = time.monotonic()
-    photo = readbuffer(bytes_to_read)
+    photo = readbuffer(bytes_to_read, inc)
     filename = "photo_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
 
     foldername = "media"
@@ -222,7 +228,35 @@ def shoot():
     
     return fullpath
 
+def parse_args():
+    # Parse input arguments
+    desc = 'Interfacing to VC0706 cameras and grabbing a photo'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('--port', dest='port',
+                        help='device name [/dev/ttyUSB0]',
+                        default='/dev/ttyUSB0', type=str)
+    parser.add_argument('--resolution', dest='resolution',
+                        help='image resolution (0-2) [0]',
+                        default=0, type=int)
+    parser.add_argument('--timeout', dest='timeout',
+                        help='port timeout in seconds [0.5]',
+                        default=0.5, type=float)
+    parser.add_argument('--chunk', dest='chunk',
+                        help='data chunk size (must be multiple of 4) [1024]',
+                        default=1024, type=int)
+    args = parser.parse_args()
+    return args
+
 if __name__ =="__main__":
-    print(PORT, BAUD, TIMEOUT)
-    s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
-    shoot()
+    args = parse_args()
+    print('Called with args:')
+    print(args)
+    
+    s.baudrate = BAUD
+    s.timeout = args.timeout
+    s.port = args.port
+    
+    s.open()
+    if s.isOpen():
+        shoot(args.resolution, args.chunk)
+    s.close()
