@@ -10,9 +10,6 @@ from datetime import datetime
 
 s = serial.Serial()
 
-#TIMEOUT = 0.5    # I needed a longer timeout than ladyada's 0.2 value
-SERIALNUM = 0    # start with 0, each camera should have a unique ID.
-
 '''
 Command format
 Protocol sign (1byte) + ID (1byte) + Command (1byte) + Data length (1byte) + Control data (n bytes)
@@ -85,12 +82,26 @@ SET SAMPLESIZE command
 def setsize(size):
     cmd = bytearray([COMMANDSEND, s.id, VC0706_WRITE_DATA, 0x05, 0x04, 0x01, 0x00, 0x19, size])
     s.write(cmd)
-    reply = s.read(17)
+    reply = s.read(5)
     #print(reply.hex())
     if checkreply(reply, VC0706_WRITE_DATA):
         return True
     return False
-    
+
+'''
+SET COMPRESSRATIO command
+<- 56 00 31 05 04 01 00 1A P8 where P8 (1 byte) is the configuration value of image compression ratio.
+-> 76 00 31 00 00
+'''
+def setcomression(ratio):
+    cmd = bytearray([COMMANDSEND, s.id, VC0706_WRITE_DATA, 0x05, 0x04, 0x01, 0x00, 0x1A, ratio])
+    s.write(cmd)
+    reply = s.read(5)
+    #print(reply.hex())
+    if checkreply(reply, VC0706_WRITE_DATA):
+        return True
+    return False
+
 '''
 FBUF CTRL command
 <- 56 00 36 01 P1 (0-Stop frame buffer data update at current frame, 3-Resume normal video state)
@@ -100,6 +111,10 @@ def takephoto():
     cmd = bytearray([COMMANDSEND, s.id, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME])
     s.write(cmd)
     reply = s.read(5)
+    if len(reply) == 0:
+        time.sleep(2)
+        print("Timeout! Try again ...")
+        reply = s.read(5) # 
     #print(reply.hex())
     if checkreply(reply, CMD_TAKEPHOTO) and reply[3] == 0:
         return True
@@ -186,7 +201,7 @@ def shoot(resolution=3, inc=1024):
         exit(0)
     print("Camera found")
 
-    print("Set Size")
+    print("Set size")
     if resolution == 0:
         setsize(VC0706_160x120)
     elif resolution == 1:
@@ -194,9 +209,13 @@ def shoot(resolution=3, inc=1024):
     else:
         setsize(VC0706_640x480)    
 
-    if reset():
-        print("Reset")
-    
+    print("Set comression ratio")
+    setcomression(0x35) # default is 0x35
+
+    print("Reset")
+    reset()
+
+    print("Take photo")
     if takephoto():
         print("--- Snap! ---")
         
