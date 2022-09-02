@@ -31,45 +31,44 @@ $ mkdir media
 - Help
 ```
 $ python3 vc0706snap.py -h
-usage: vc0706snap.py [-h] [--port PORT] [--resolution RESOLUTION]
-                      [--timeout TIMEOUT] [--chunk CHUNK]
+usage: vc0706snap.py [-h] [--port PORT] [--baudrate BAUDRATE] [--resolution RESOLUTION] 
+       [--timeout TIMEOUT] [--chunk CHUNK] [--id ID]
 
 Interfacing to VC0706 cameras and grabbing a photo
 
 optional arguments:
   -h, --help            show this help message and exit
-  --port PORT           device name [/dev/ttyUSB0]
+  --port PORT           port name [/dev/ttyUSB0]
+  --baudrate BAUDRATE   port baud rate [38400]
   --resolution RESOLUTION
                         image resolution (0-2) [0]
   --timeout TIMEOUT     port timeout in seconds [0.5]
   --chunk CHUNK         data chunk size (must be multiple of 4) [1024]
+  --id ID               camera ID [0]
 ```
 - Run script
 ```
-$ python3 vc0706snap.py --r 0 --c 512
+$ python3 vc0706snap.py --p /dev/ttyUSB1 --r 0 --c 1024 --id 1
 Called with args:
-Namespace(chunk=512, port='/dev/ttyUSB0', resolution=0, timeout=0.5)
+Namespace(baudrate=38400, chunk=1024, id=1, port='/dev/ttyUSB1', resolution=0, timeout=0.5)
 --- Version ---
-VC0703 1.00
+VC0706 1.99
 Camera found
-Set Size
+Set size
+Set comression ratio
 Reset
+Take photo
 --- Snap! ---
-2856 bytes to read
-Reading 512 bytes at 0
-saving 512 bytes
-Reading 512 bytes at 512
+29554 bytes to read
+Reading 1024 bytes at 0
 saving 1024 bytes
-Reading 512 bytes at 1024
-saving 1536 bytes
-Reading 512 bytes at 1536
+Reading 1024 bytes at 1024
 saving 2048 bytes
-Reading 512 bytes at 2048
-saving 2560 bytes
-Reading 296 bytes at 2560
-saving 2856 bytes
-2856 Bytes written
-Finished in 1.4 seconds!
+...
+Reading 882 bytes at 28672
+saving 29554 bytes
+29554 Bytes written
+Finished in 8.2 seconds!
 ```
 - View image
 ```

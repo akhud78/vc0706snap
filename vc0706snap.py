@@ -8,12 +8,7 @@ import serial
 import argparse
 from datetime import datetime
 
-BAUD = 38400
-#BAUD = 115200
-PORT = "/dev/ttyUSB0"
-
-TIMEOUT = 0.5    # I needed a longer timeout than ladyada's 0.2 value
-SERIALNUM = 0    # start with 0, each camera should have a unique ID.
+s = serial.Serial()
 
 '''
 Command format
@@ -45,16 +40,9 @@ VC0706_160x120=0x22
 VC0706_READ_DATA=0x30
 VC0706_WRITE_DATA=0x31
 
-resetcommand = [COMMANDSEND, SERIALNUM, CMD_RESET, COMMANDEND]
-getversioncommand = [COMMANDSEND, SERIALNUM, CMD_GETVERSION, COMMANDEND]
-takephotocommand = [COMMANDSEND, SERIALNUM, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME]
-getbufflencommand = [COMMANDSEND, SERIALNUM, CMD_GETBUFFLEN, 0x01, FBUF_CURRENTFRAME]
-
-#s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
-s = serial.Serial()
     
 def checkreply(r, b):
-    if (r[0] == 0x76 and r[1] == SERIALNUM and r[2] == b and r[3] == 0x00):
+    if (r[0] == 0x76 and r[1] == s.id and r[2] == b and r[3] == 0x00):
         return True
     return False
 
@@ -64,7 +52,7 @@ RESET Command
 -> 76 00 26 00 00
 '''
 def reset():
-    cmd = bytearray(resetcommand)
+    cmd = bytearray([COMMANDSEND, s.id, CMD_RESET, 0])
     s.write(cmd)
     reply = s.read(100)
     #print(replay.hex())
@@ -78,7 +66,7 @@ GET VERSION Command
 -> 76 00 11 00 0B 56 43 30 37 30 36 20 31 2E 30 30 ("VC0706 1.00")
 '''
 def getversion():
-    cmd = bytearray(getversioncommand)
+    cmd = bytearray([COMMANDSEND, s.id, CMD_GETVERSION, 0])
     s.write(cmd)
     reply = s.read(16)
     #print(reply.hex())
@@ -92,24 +80,41 @@ SET SAMPLESIZE command
 -> 76 00 31 00 00
 '''
 def setsize(size):
-    setsizecommand =  [COMMANDSEND, SERIALNUM, VC0706_WRITE_DATA, 0x05, 0x04, 0x01, 0x00, 0x19, size]
-    cmd = bytearray(setsizecommand)
+    cmd = bytearray([COMMANDSEND, s.id, VC0706_WRITE_DATA, 0x05, 0x04, 0x01, 0x00, 0x19, size])
     s.write(cmd)
-    reply = s.read(17)
+    reply = s.read(5)
     #print(reply.hex())
     if checkreply(reply, VC0706_WRITE_DATA):
         return True
     return False
-    
+
+'''
+SET COMPRESSRATIO command
+<- 56 00 31 05 04 01 00 1A P8 where P8 (1 byte) is the configuration value of image compression ratio.
+-> 76 00 31 00 00
+'''
+def setcomression(ratio):
+    cmd = bytearray([COMMANDSEND, s.id, VC0706_WRITE_DATA, 0x05, 0x04, 0x01, 0x00, 0x1A, ratio])
+    s.write(cmd)
+    reply = s.read(5)
+    #print(reply.hex())
+    if checkreply(reply, VC0706_WRITE_DATA):
+        return True
+    return False
+
 '''
 FBUF CTRL command
 <- 56 00 36 01 P1 (0-Stop frame buffer data update at current frame, 3-Resume normal video state)
 -> 76 00 36 00 00
 '''
 def takephoto():
-    cmd = bytearray(takephotocommand)
+    cmd = bytearray([COMMANDSEND, s.id, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME])
     s.write(cmd)
     reply = s.read(5)
+    if len(reply) == 0:
+        time.sleep(2)
+        print("Timeout! Try again ...")
+        reply = s.read(5) # 
     #print(reply.hex())
     if checkreply(reply, CMD_TAKEPHOTO) and reply[3] == 0:
         return True
@@ -121,7 +126,7 @@ GET FBUF LEN command
 -> 76 00 34 00 04 P2 (P2-4 bytes image size)
 '''
 def getbufferlength():
-    cmd = bytearray(getbufflencommand)
+    cmd = bytearray([COMMANDSEND, s.id, CMD_GETBUFFLEN, 0x01, FBUF_CURRENTFRAME])
     s.write(cmd)
     r = s.read(10)
     #print(r.hex())
@@ -141,16 +146,14 @@ READ FBUF command
 The host sends this command to get the image data from frame buffer.
 <- 56 00 32 0C 00 0A 00 00 00 00 P3 P4 (P3-4 bytes data size, P4-2 bytes delay)
 '''
-readphotocommand = [COMMANDSEND, SERIALNUM, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAME, 0x0a]
 
+# inc - bytes to read each time (must be a mutiple of 4)
 def readbuffer(size, inc=1024):
+
     addr = 0   # the initial offset into the frame buffer
     photo = bytearray()
+    readphotocommand = [COMMANDSEND, s.id, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAME, 0x0a]
     
-    # bytes to read each time (must be a mutiple of 4)
-    #inc = 8192
-    #inc = 1024
-
     while addr < size:
         # on the last read, we may need to read fewer bytes.
         chunk = min(size-addr, inc)
@@ -198,7 +201,7 @@ def shoot(resolution=3, inc=1024):
         exit(0)
     print("Camera found")
 
-    print("Set Size")
+    print("Set size")
     if resolution == 0:
         setsize(VC0706_160x120)
     elif resolution == 1:
@@ -206,9 +209,13 @@ def shoot(resolution=3, inc=1024):
     else:
         setsize(VC0706_640x480)    
 
-    if reset():
-        print("Reset")
-    
+    print("Set comression ratio")
+    setcomression(0x35) # default is 0x35
+
+    print("Reset")
+    reset()
+
+    print("Take photo")
     if takephoto():
         print("--- Snap! ---")
         
@@ -233,8 +240,11 @@ def parse_args():
     desc = 'Interfacing to VC0706 cameras and grabbing a photo'
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--port', dest='port',
-                        help='device name [/dev/ttyUSB0]',
+                        help='port name [/dev/ttyUSB0]',
                         default='/dev/ttyUSB0', type=str)
+    parser.add_argument('--baudrate', dest='baudrate',
+                        help='port baud rate [38400]',
+                        default=38400, type=int)
     parser.add_argument('--resolution', dest='resolution',
                         help='image resolution (0-2) [0]',
                         default=0, type=int)
@@ -244,6 +254,10 @@ def parse_args():
     parser.add_argument('--chunk', dest='chunk',
                         help='data chunk size (must be multiple of 4) [1024]',
                         default=1024, type=int)
+    parser.add_argument('--id', dest='id',
+                        help='camera ID [0]',
+                        default=0, type=int)    
+
     args = parser.parse_args()
     return args
 
@@ -252,9 +266,10 @@ if __name__ =="__main__":
     print('Called with args:')
     print(args)
     
-    s.baudrate = BAUD
+    s.baudrate = args.baudrate
     s.timeout = args.timeout
     s.port = args.port
+    s.id = args.id  # add id field to serial object!
     
     s.open()
     if s.isOpen():
