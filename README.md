@@ -31,44 +31,59 @@ $ mkdir media
 - Help
 ```
 $ python3 vc0706snap.py -h
-usage: vc0706snap.py [-h] [--port PORT] [--baudrate BAUDRATE] [--resolution RESOLUTION] 
-       [--timeout TIMEOUT] [--chunk CHUNK] [--id ID]
+usage: vc0706snap.py [-h] [--port PORT] [--baudrate BAUDRATE] [--size SIZE]
+                     [--timeout TIMEOUT] [--chunk CHUNK] [--id ID] [--next] [--reset]
 
 Interfacing to VC0706 cameras and grabbing a photo
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --port PORT           port name [/dev/ttyUSB0]
-  --baudrate BAUDRATE   port baud rate [38400]
-  --resolution RESOLUTION
-                        image resolution (0-2) [0]
-  --timeout TIMEOUT     port timeout in seconds [0.5]
-  --chunk CHUNK         data chunk size (must be multiple of 4) [1024]
-  --id ID               camera ID [0]
+  -h, --help           show this help message and exit
+  --port PORT          port name [/dev/ttyUSB0]
+  --baudrate BAUDRATE  port baud rate [38400]
+  --size SIZE          image size (0-2) [0]
+  --timeout TIMEOUT    port timeout in seconds [0.5]
+  --chunk CHUNK        data chunk size (must be multiple of 4) [1024]
+  --id ID              camera ID [0]
+  --next               use next frame
+  --reset              reset camera
 ```
 - Run script
 ```
-$ python3 vc0706snap.py --p /dev/ttyUSB1 --r 0 --c 1024 --id 1
+$ python3 vc0706snap.py --n
 Called with args:
-Namespace(baudrate=38400, chunk=1024, id=1, port='/dev/ttyUSB1', resolution=0, timeout=0.5)
+Namespace(baudrate=38400, chunk=1024, id=0, next_frame=True,
+          port='/dev/ttyUSB0', reset=False, size=0, timeout=0.5)
 --- Version ---
-VC0706 1.99
-Camera found
-Set size
+Test at 9600
+Test at 19200
+Test at 38400
+VC0703 1.00
+Camera found at 38400
+Set port 38400
+Version
+VC0703 1.00
+Camera found at 38400
+Get size
+Get comression ratio
+Set size 0
+560031050401001922
 Set comression ratio
-Reset
-Take photo
+Disable TV out
+Get downsize status
+Step Frame
+Stop next frame
 --- Snap! ---
-29554 bytes to read
+Get buffer length 
+48200 bytes to read
 Reading 1024 bytes at 0
 saving 1024 bytes
-Reading 1024 bytes at 1024
-saving 2048 bytes
 ...
-Reading 882 bytes at 28672
-saving 29554 bytes
-29554 Bytes written
-Finished in 8.2 seconds!
+Reading 1024 bytes at 47104
+saving 48128 bytes
+Reading 72 bytes at 48128
+saving 48200 bytes
+48200 Bytes written
+Finished in 17.9 seconds!
 ```
 - View image
 ```
