@@ -357,7 +357,7 @@ def shoot(size=3, inc=1024, next_frame= False):
         print("Test at", s.baudrate) 
         s.open()
         if not s.isOpen():
-            return # error
+            return False
         if getversion():
             print("Camera found at", rate)
             camera_ok = True
@@ -365,31 +365,33 @@ def shoot(size=3, inc=1024, next_frame= False):
             
     if not camera_ok:
         print("Camera not found")
-        return
+        return False
                 
     print("Set port", rate_default)
     if not setport(rate_default):
-        return    
+        return False   
+    # <- 56002403010da6
+    # -> 7600240000
     
     s.close()
     s.baudrate = rate_default
     s.open()
     if not s.isOpen():
-        return # error
+        return False
     
     print("Version")    
     if not getversion():
-        return # error
+        return False
 
     print("Camera found at", s.baudrate)
     
     print("Get size")
     if not getsize():
-        return
+        return False
         
     print("Get comression ratio")
     if not getcomression():
-        return
+        return False
 
     print("Set size", size)
     if size == 0:
@@ -403,10 +405,12 @@ def shoot(size=3, inc=1024, next_frame= False):
     setcomression(0x35) # default is 0x35
     
     print("Disable TV out")
-    settvout(0)
+    if not settvout(0):
+        return False
 
     print("Get downsize status")
-    get_downsize_status()
+    if not get_downsize_status():
+        return False
     # <- 5600540100
     # -> 7600540000
 
@@ -428,6 +432,8 @@ def shoot(size=3, inc=1024, next_frame= False):
     f.close()
     print("Finished in %0.1f seconds!" % (time.monotonic() - stamp))
     s.close()
+    
+    return True
 
 def parse_args():
     # Parse input arguments
@@ -479,4 +485,5 @@ if __name__ =="__main__":
         # <- 56002600
         # -> 76002600 ...
     else:
-        shoot(args.size, args.chunk, args.next_frame)
+        if not shoot(args.size, args.chunk, args.next_frame):
+            print("--- Error! ---")
