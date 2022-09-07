@@ -56,10 +56,10 @@ def reset():
     cmd = bytearray([COMMANDSEND, s.id, CMD_RESET, 0])
     print(cmd.hex())
     s.write(cmd)
-    print("Wait ...")
+    #print("Wait ...")
     time.sleep(2)
     reply = s.read(200)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, CMD_RESET):
         return True
     return False
@@ -93,7 +93,7 @@ def getsize():
     cmd = bytearray([COMMANDSEND, s.id, VC0706_READ_DATA, 0x04, 0x04, 0x01, 0x00, 0x19])    
     s.write(cmd)
     reply = s.read(6)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, VC0706_READ_DATA):
         return True
     return False
@@ -108,7 +108,7 @@ def setsize(size):
     print(cmd.hex())
     s.write(cmd)
     reply = s.read(5)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, VC0706_WRITE_DATA):
         return True
     return False
@@ -123,7 +123,7 @@ def getcomression():
     cmd = bytearray([COMMANDSEND, s.id, VC0706_READ_DATA, 0x04, 0x04, 0x01, 0x00, 0x1A])
     s.write(cmd)
     reply = s.read(6)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, VC0706_READ_DATA):
         return True
     return False
@@ -152,7 +152,7 @@ def settvout(ctrl):
     cmd = bytearray([COMMANDSEND, s.id, VC0706_TV_OUT_CTRL, 0x01, ctrl])
     s.write(cmd)
     reply = s.read(5)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, VC0706_TV_OUT_CTRL):
         return True
     return False
@@ -170,10 +170,10 @@ def setport(rate):
         s1relh = 0x0d
         s1rell = 0xa6
     cmd = bytearray([COMMANDSEND, s.id, CMD_SETPORT, 0x03, 0x01, s1relh, s1rell])
-    print(cmd.hex())
+    #print(cmd.hex())
     s.write(cmd)
     reply = s.read(5)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, CMD_SETPORT):
         return True
     return False
@@ -199,14 +199,14 @@ Every stop image capture command will snap an image
 '''
 def setfbuf(ctrl):
     cmd = bytearray([COMMANDSEND, s.id, CMD_FBUF_CTRL, 0x01, ctrl])
-    print(cmd.hex())
+    #print(cmd.hex())
     s.write(cmd)
     reply = s.read(5)
     if len(reply) == 0:
         time.sleep(2)
         print("Timeout! Try again ...")
         reply = s.read(5) # 
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, CMD_FBUF_CTRL) and reply[3] == 0:
         return True
     return False
@@ -220,10 +220,10 @@ Command format ： 0x56+serial number+0x54+0x00
 '''
 def get_downsize_status():
     cmd = bytearray([COMMANDSEND, s.id, CMD_DOWNSIZE_STATUS, 0x01, 0x00])
-    print(cmd.hex())
+    #print(cmd.hex())
     s.write(cmd)
     reply = s.read(5)
-    print(reply.hex())
+    #print(reply.hex())
     if checkreply(reply, CMD_DOWNSIZE_STATUS):
         return True
     return False
@@ -243,10 +243,10 @@ FBUF type：current frame or next frame
 '''
 def getbufferlength(fbuf_type):
     cmd = bytearray([COMMANDSEND, s.id, CMD_GETBUFFLEN, 0x01, fbuf_type])
-    print(cmd.hex())
+    #print(cmd.hex())
     s.write(cmd)
     r = s.read(10)
-    print(r.hex())
+    #print(r.hex())
     if checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4:
         l = r[5]
         l <<= 8
