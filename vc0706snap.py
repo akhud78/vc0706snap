@@ -23,25 +23,24 @@ COMMANDREPLY = 0x76
 COMMANDEND = 0x00
 
 CMD_GETVERSION = 0x11
+CMD_SETPORT = 0x24
 CMD_RESET = 0x26
-CMD_TAKEPHOTO = 0x36
+CMD_FBUF_CTRL = 0x36
 CMD_READBUFF = 0x32
 CMD_GETBUFFLEN = 0x34
+CMD_DOWNSIZE_STATUS = 0x54
 
-FBUF_CURRENTFRAME = 0x00
-FBUF_NEXTFRAME = 0x01
+VC0706_640x480 = 0x00
+VC0706_320x240 = 0x11
+VC0706_160x120 = 0x22
 
-FBUF_STOPCURRENTFRAME = 0x00
-
-VC0706_640x480=0x00
-VC0706_320x240=0x11
-VC0706_160x120=0x22
-
-VC0706_READ_DATA=0x30
-VC0706_WRITE_DATA=0x31
-
+VC0706_READ_DATA = 0x30
+VC0706_WRITE_DATA = 0x31
+VC0706_TV_OUT_CTRL = 0x44
     
 def checkreply(r, b):
+    if len(r) == 0:
+        return False
     if (r[0] == 0x76 and r[1] == s.id and r[2] == b and r[3] == 0x00):
         return True
     return False
@@ -50,12 +49,17 @@ def checkreply(r, b):
 RESET Command
 <- 56 00 26 00
 -> 76 00 26 00 00
+
+After any change, please reset the camera to make the change valid
 '''
 def reset():
     cmd = bytearray([COMMANDSEND, s.id, CMD_RESET, 0])
+    print(cmd.hex())
     s.write(cmd)
-    reply = s.read(100)
-    #print(replay.hex())
+    print("Wait ...")
+    time.sleep(2)
+    reply = s.read(200)
+    print(reply.hex())
     if checkreply(reply, CMD_RESET):
         return True
     return False
@@ -69,11 +73,31 @@ def getversion():
     cmd = bytearray([COMMANDSEND, s.id, CMD_GETVERSION, 0])
     s.write(cmd)
     reply = s.read(16)
-    #print(reply.hex())
-    print(reply.decode()[5:])
+    if len(reply):
+        print(reply.decode()[5:])
     if checkreply(reply, CMD_GETVERSION):
         return True
     return False
+    
+'''
+GET SAMPLESIZE command
+    READ DATA
+    I2C EEPROM：0x56+serial number+0x30+0x04+0x04+the data num ready to read+register address(2 bytes).
+    Return format ：
+    Ok：0x76+serial number+0x30+0x00+the number of reading+register address
+    
+<- 56 00 30 04 04 01 00 19
+-> 76 00 30 00 01 00
+'''
+def getsize():
+    cmd = bytearray([COMMANDSEND, s.id, VC0706_READ_DATA, 0x04, 0x04, 0x01, 0x00, 0x19])    
+    s.write(cmd)
+    reply = s.read(6)
+    print(reply.hex())
+    if checkreply(reply, VC0706_READ_DATA):
+        return True
+    return False
+    
 '''
 SET SAMPLESIZE command
 <- 56 00 31 05 04 01 00 19 P7 (P7-image size 0 for VGA and 0x11 for QVGA)
@@ -81,13 +105,28 @@ SET SAMPLESIZE command
 '''
 def setsize(size):
     cmd = bytearray([COMMANDSEND, s.id, VC0706_WRITE_DATA, 0x05, 0x04, 0x01, 0x00, 0x19, size])
+    print(cmd.hex())
     s.write(cmd)
     reply = s.read(5)
-    #print(reply.hex())
+    print(reply.hex())
     if checkreply(reply, VC0706_WRITE_DATA):
         return True
     return False
 
+
+'''
+GET COMPRESSRATIO command
+<- 56 00 30 04 04 01 00 1a
+-> 76 00 30 00 01 35
+'''
+def getcomression():
+    cmd = bytearray([COMMANDSEND, s.id, VC0706_READ_DATA, 0x04, 0x04, 0x01, 0x00, 0x1A])
+    s.write(cmd)
+    reply = s.read(6)
+    print(reply.hex())
+    if checkreply(reply, VC0706_READ_DATA):
+        return True
+    return False
 '''
 SET COMPRESSRATIO command
 <- 56 00 31 05 04 01 00 1A P8 where P8 (1 byte) is the configuration value of image compression ratio.
@@ -101,35 +140,113 @@ def setcomression(ratio):
     if checkreply(reply, VC0706_WRITE_DATA):
         return True
     return False
+'''
+TV_OUT_CTRL
+    0x56+serial number+0x44+0x01+control item(1 byte)
+    0：stop TV output
+    1：start TV output
+<- 56 00 44 01 00
+-> 76 00 44 00 00
+'''
+def settvout(ctrl):
+    cmd = bytearray([COMMANDSEND, s.id, VC0706_TV_OUT_CTRL, 0x01, ctrl])
+    s.write(cmd)
+    reply = s.read(5)
+    print(reply.hex())
+    if checkreply(reply, VC0706_TV_OUT_CTRL):
+        return True
+    return False
+
+'''
+SET_PORT command
+Set the property of communication interface
+<- 56 00 31 05 04 01 00 19 P7 (P7-image size 0 for VGA and 0x11 for QVGA)
+-> 76 00 31 00 00
+'''
+def setport(rate):
+    s1relh = 0x2a  # 38400
+    s1rell = 0xf2  # 38400
+    if rate == 115200:
+        s1relh = 0x0d
+        s1rell = 0xa6
+    cmd = bytearray([COMMANDSEND, s.id, CMD_SETPORT, 0x03, 0x01, s1relh, s1rell])
+    print(cmd.hex())
+    s.write(cmd)
+    reply = s.read(5)
+    print(reply.hex())
+    if checkreply(reply, CMD_SETPORT):
+        return True
+    return False
+
+
+FBUF_STOP_CURRENTFRAME = 0x00
+FBUF_STOP_NEXTFRAME = 0x01
+FBUF_RESUME_FRAME = 0x02
+FBUF_STEP_FRAME = 0x03
 
 '''
 FBUF CTRL command
-<- 56 00 36 01 P1 (0-Stop frame buffer data update at current frame, 3-Resume normal video state)
+    control flag：
+    0：stop current frame
+    1：stop next frame
+    2：resume frame
+    3：step frame
+
+Every stop image capture command will snap an image
+    
+<- 56 00 36 01 ctrl
 -> 76 00 36 00 00
 '''
-def takephoto():
-    cmd = bytearray([COMMANDSEND, s.id, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME])
+def setfbuf(ctrl):
+    cmd = bytearray([COMMANDSEND, s.id, CMD_FBUF_CTRL, 0x01, ctrl])
+    print(cmd.hex())
     s.write(cmd)
     reply = s.read(5)
     if len(reply) == 0:
         time.sleep(2)
         print("Timeout! Try again ...")
         reply = s.read(5) # 
-    #print(reply.hex())
-    if checkreply(reply, CMD_TAKEPHOTO) and reply[3] == 0:
+    print(reply.hex())
+    if checkreply(reply, CMD_FBUF_CTRL) and reply[3] == 0:
         return True
     return False
 
 '''
+GET DOWNSIZE STATUS
+Command function ： get downsize status
+Command format ： 0x56+serial number+0x54+0x00
+<- 56 00 54 01 00
+-> 76 00 54 00 00
+'''
+def get_downsize_status():
+    cmd = bytearray([COMMANDSEND, s.id, CMD_DOWNSIZE_STATUS, 0x01, 0x00])
+    print(cmd.hex())
+    s.write(cmd)
+    reply = s.read(5)
+    print(reply.hex())
+    if checkreply(reply, CMD_DOWNSIZE_STATUS):
+        return True
+    return False
+
+FBUF_TYPE_CURRENTFRAME = 0x00
+FBUF_TYPE_NEXTFRAME = 0x01
+
+'''
 GET FBUF LEN command
-<- 56 00 34 01 00
+
+FBUF type：current frame or next frame
+0：current frame
+1：next frame
+
+<- 56 00 34 01 fbuf_type
 -> 76 00 34 00 04 P2 (P2-4 bytes image size)
 '''
-def getbufferlength():
-    cmd = bytearray([COMMANDSEND, s.id, CMD_GETBUFFLEN, 0x01, FBUF_CURRENTFRAME])
+def getbufferlength(fbuf_type):
+    cmd = bytearray([COMMANDSEND, s.id, CMD_GETBUFFLEN, 0x01, fbuf_type])
+    print(cmd.hex())
     s.write(cmd)
     r = s.read(10)
-    #print(r.hex())
+    print(r.hex())
     if checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4:
         l = r[5]
         l <<= 8
@@ -148,11 +265,11 @@ The host sends this command to get the image data from frame buffer.
 '''
 
 # inc - bytes to read each time (must be a mutiple of 4)
-def readbuffer(size, inc=1024):
+def readbuffer(fbuf_type, size, inc=1024):
 
     addr = 0   # the initial offset into the frame buffer
     photo = bytearray()
-    readphotocommand = [COMMANDSEND, s.id, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAME, 0x0a]
+    readphotocommand = [COMMANDSEND, s.id, CMD_READBUFF, 0x0c, fbuf_type, 0x0a]
     
     while addr < size:
         # on the last read, we may need to read fewer bytes.
@@ -193,37 +310,115 @@ def readbuffer(size, inc=1024):
     print (addr, "Bytes written")
     return photo
         
+def get_current_frame():
+    print("Resume Frame")
+    setfbuf(FBUF_RESUME_FRAME)
+    # <- 5600360102
+    # -> 7600360000
 
-def shoot(resolution=3, inc=1024):
+    print("Stop current frame")
+    if setfbuf(FBUF_STOP_CURRENTFRAME):
+        print("--- Snap! ---")
+    # <- 5600360100
+    # -> 7600360000
+    
+    print("Get buffer length ")
+    return getbufferlength(FBUF_TYPE_CURRENTFRAME)
+    # <- 5600340100
+    # -> 76003400040000b6b8
+
+        
+def get_next_frame():
+    print("Step Frame")
+    setfbuf(FBUF_STEP_FRAME)
+    # <- 5600360103
+    # -> 7600360000
+
+    print("Stop next frame")
+    if setfbuf(FBUF_STOP_NEXTFRAME):
+        print("--- Snap! ---")
+    # <- 5600360101
+    # -> 7600360000
+    
+    print("Get buffer length ")    
+    return getbufferlength(FBUF_TYPE_NEXTFRAME)
+    
+
+def shoot(size=3, inc=1024, next_frame= False):
+    
     print("--- Version ---")
-    if (not getversion()):
+    rate_default = s.baudrate
+    camera_ok = False
+    rate_list = [9600, 19200, 38400, 57600, 115200]
+    for rate in rate_list:
+        if s.isOpen():
+            s.close()
+        s.baudrate = rate
+        print("Test at", s.baudrate) 
+        s.open()
+        if not s.isOpen():
+            return # error
+        if getversion():
+            print("Camera found at", rate)
+            camera_ok = True
+            break
+            
+    if not camera_ok:
         print("Camera not found")
-        exit(0)
-    print("Camera found")
+        return
+                
+    print("Set port", rate_default)
+    if not setport(rate_default):
+        return    
+    
+    s.close()
+    s.baudrate = rate_default
+    s.open()
+    if not s.isOpen():
+        return # error
+    
+    print("Version")    
+    if not getversion():
+        return # error
 
-    print("Set size")
-    if resolution == 0:
+    print("Camera found at", s.baudrate)
+    
+    print("Get size")
+    if not getsize():
+        return
+        
+    print("Get comression ratio")
+    if not getcomression():
+        return
+
+    print("Set size", size)
+    if size == 0:
         setsize(VC0706_160x120)
-    elif resolution == 1:
+    elif size == 1:
         setsize(VC0706_320x240)
     else:
         setsize(VC0706_640x480)    
 
     print("Set comression ratio")
     setcomression(0x35) # default is 0x35
-
-    print("Reset")
-    reset()
-
-    print("Take photo")
-    if takephoto():
-        print("--- Snap! ---")
-        
-    bytes_to_read = getbufferlength()
-    print(bytes_to_read, "bytes to read")
     
+    print("Disable TV out")
+    settvout(0)
+
+    print("Get downsize status")
+    get_downsize_status()
+    # <- 5600540100
+    # -> 7600540000
+
+    bytes_to_read = 0
+    if next_frame:
+        bytes_to_read = get_next_frame()
+    else:
+        bytes_to_read = get_current_frame()
+    print(bytes_to_read, "bytes to read")
+
     stamp = time.monotonic()
-    photo = readbuffer(bytes_to_read, inc)
+    photo = readbuffer(FBUF_TYPE_NEXTFRAME, bytes_to_read, inc)
     filename = "photo_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
 
     foldername = "media"
@@ -232,8 +427,7 @@ def shoot(resolution=3, inc=1024):
     f.write(photo)
     f.close()
     print("Finished in %0.1f seconds!" % (time.monotonic() - stamp))
-    
-    return fullpath
+    s.close()
 
 def parse_args():
     # Parse input arguments
@@ -245,8 +439,8 @@ def parse_args():
     parser.add_argument('--baudrate', dest='baudrate',
                         help='port baud rate [38400]',
                         default=38400, type=int)
-    parser.add_argument('--resolution', dest='resolution',
-                        help='image resolution (0-2) [0]',
+    parser.add_argument('--size', dest='size',
+                        help='image size (0-2) [0]',
                         default=0, type=int)
     parser.add_argument('--timeout', dest='timeout',
                         help='port timeout in seconds [0.5]',
@@ -257,6 +451,13 @@ def parse_args():
     parser.add_argument('--id', dest='id',
                         help='camera ID [0]',
                         default=0, type=int)    
+    parser.add_argument('--next', dest='next_frame',
+                        help='use next frame',
+                        action="store_true") 
+    parser.add_argument('--reset', dest='reset',
+                        help='reset camera',
+                        action="store_true") 
+                        
 
     args = parser.parse_args()
     return args
@@ -271,7 +472,11 @@ if __name__ =="__main__":
     s.port = args.port
     s.id = args.id  # add id field to serial object!
     
-    s.open()
-    if s.isOpen():
-        shoot(args.resolution, args.chunk)
-    s.close()
+    if args.reset:
+        s.open()
+        print("Reset")
+        reset()
+        # <- 56002600
+        # -> 76002600 ...
+    else:
+        shoot(args.size, args.chunk, args.next_frame)
